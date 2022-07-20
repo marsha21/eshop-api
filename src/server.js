@@ -1,6 +1,7 @@
 require('dotenv').config();
 const Hapi = require('@hapi/hapi');
 const Jwt = require('@hapi/jwt');
+const Inert = require('@hapi/inert');
 
 // authentication
 const authentication = require('./api/authentication');
@@ -14,11 +15,27 @@ const InvariantError = require('./exceptions/InvariantErrror');
 const products = require('./api/products');
 const ProductsService = require('./services/mysql/ProductsService');
 const ProductsValidator = require('./validator/products');
+const StorageService = require('./services/storage/StorageService');
+const path = require('path');
+
+// carts
+const carts = require('./api/carts');
+const CartsService = require('./services/mysql/CartsService');
+const CartsValidator = require('./validator/carts');
+
+// transactions
+const transactions = require('./api/transactions');
+const TransactionsService = require('./services/mysql/TransactionsService');
+
 
 const init = async () => {
  const database = new Database();
  const authenticationService = new AuthenticationService(database);
  const productsService = new ProductsService(database);
+ const cartsService = new CartsService(database);
+ const transactionsService = new TransactionsService(database);
+ const storageService = new StorageService(path.resolve(__dirname + '/api/products/images'));
+
 
 
     const server = Hapi.server({
@@ -43,6 +60,9 @@ const init = async () => {
   await server.register([
     {
       plugin: Jwt,
+    },
+    {
+      plugin: Inert,
     },
   ]);
 
@@ -74,8 +94,24 @@ const init = async () => {
         {
           plugin: products,
           options: {
-            service: productsService,
+            productsService,
+            storageService,
             validator: ProductsValidator,
+          },
+        },
+
+        {
+          plugin: carts,
+          options: {
+            service: cartsService,
+            validator: CartsValidator,
+          },
+        },
+
+        {
+          plugin: transactions,
+          options: {
+            service: transactionsService,
           },
         },
       ]);
